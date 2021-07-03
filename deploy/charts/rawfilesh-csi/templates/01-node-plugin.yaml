@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "rawfile-csi.fullname" . }}-node
+  name: {{ include "rawfilesh-csi.fullname" . }}-node
   labels:
-    {{- include "rawfile-csi.labels" . | nindent 4 }}
+    {{- include "rawfilesh-csi.labels" . | nindent 4 }}
     component: node
 spec:
   type: ClusterIP
@@ -13,26 +13,26 @@ spec:
       targetPort: metrics
       protocol: TCP
   selector:
-    {{- include "rawfile-csi.selectorLabels" . | nindent 4 }}
+    {{- include "rawfilesh-csi.selectorLabels" . | nindent 4 }}
     component: node
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: {{ include "rawfile-csi.fullname" . }}-node
+  name: {{ include "rawfilesh-csi.fullname" . }}-node
 spec:
   updateStrategy:
     rollingUpdate:
       maxUnavailable: "100%"
   selector:
     matchLabels: &selectorLabels
-      {{- include "rawfile-csi.selectorLabels" . | nindent 6 }}
+      {{- include "rawfilesh-csi.selectorLabels" . | nindent 6 }}
       component: node
   template:
     metadata:
       labels: *selectorLabels
     spec:
-      serviceAccount: {{ include "rawfile-csi.fullname" . }}-driver
+      serviceAccount: {{ include "rawfilesh-csi.fullname" . }}-driver
       priorityClassName: system-node-critical
       tolerations:
         - operator: "Exists"
@@ -43,16 +43,14 @@ spec:
             type: Directory
         - name: socket-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/rawfile-csi
+            path: /var/lib/kubelet/plugins/rawfilesh-csi
             type: DirectoryOrCreate
         - name: mountpoint-dir
           hostPath:
             path: /var/lib/kubelet
             type: DirectoryOrCreate
         - name: data-dir
-          hostPath:
-            path: /var/csi/rawfile
-            type: DirectoryOrCreate
+          {{- toYaml .Values.sharedStorage | nindent 10}}
       containers:
         - name: csi-driver
           image: "{{ .Values.node.image.repository }}:{{ .Values.node.image.tag }}"
@@ -64,12 +62,6 @@ spec:
               value: "{{ .Values.provisionerName }}"
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
-            - name: IMAGE_REPOSITORY
-              value: "{{ .Values.node.image.repository }}"
-          {{- if regexMatch "^.*-ci$" .Values.node.image.tag }}
-            - name: IMAGE_TAG
-              value: "{{ .Values.node.image.tag }}"
-          {{- end }}
             - name: NODE_ID
               valueFrom:
                 fieldRef:
@@ -101,7 +93,7 @@ spec:
             - name: ADDRESS
               value: /csi/csi.sock
             - name: DRIVER_REG_SOCK_PATH
-              value: /var/lib/kubelet/plugins/rawfile-csi/csi.sock
+              value: /var/lib/kubelet/plugins/rawfilesh-csi/csi.sock
           ports:
             - containerPort: 9809
               name: healthz

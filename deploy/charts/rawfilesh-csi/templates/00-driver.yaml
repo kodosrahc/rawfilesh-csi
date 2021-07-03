@@ -3,7 +3,7 @@ kind: CSIDriver
 metadata:
   name: {{ .Values.provisionerName }}
 spec:
-  attachRequired: false
+  attachRequired: true
   podInfoOnMount: true
   fsGroupPolicy: File
   volumeLifecycleModes:

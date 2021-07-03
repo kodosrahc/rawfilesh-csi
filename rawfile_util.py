@@ -1,5 +1,6 @@
 import glob
 import json
+from os import umask
 from os.path import basename, dirname
 from pathlib import Path
 import time
@@ -113,3 +114,47 @@ def migrate_all_volume_schemas():
 def gc_all_volumes(dry_run=True):
     for volume_id in list_all_volumes():
         gc_if_needed(volume_id, dry_run=dry_run)
+
+
+def scrub(volume_id):
+    t_img_dir = img_dir(volume_id)
+    if not t_img_dir.exists():
+        return
+
+    now = time.time()
+    deleted_at = now
+    gc_at = now  # TODO: GC sensitive PVCs later
+    patch_metadata(volume_id, {"deleted_at": deleted_at, "gc_at": gc_at})
+    gc_if_needed(volume_id, dry_run=False)
+
+
+def init_rawfile(volume_id, size):
+    t_img_dir = img_dir(volume_id)
+    t_img_dir.mkdir(exist_ok=True)
+    img_file = Path(f"{t_img_dir}/disk.img")
+    if img_file.exists():
+        return
+    patch_metadata(
+        volume_id,
+        {
+            "schema_version": LATEST_SCHEMA_VERSION,
+            "volume_id": volume_id,
+            "created_at": time.time(),
+            "img_file": img_file.as_posix(),
+            "size": size,
+            "published_at": "",
+        },
+    )
+    old_umask = umask (0o077)
+    run(f"truncate -s {size} {img_file}")
+    umask(old_umask) # to be un the safe side
+
+
+def expand_rawfile(volume_id, size):
+    t_img_file = img_file(volume_id)
+    if metadata(volume_id)["size"] >= size:
+        return
+    patch_metadata(
+        volume_id, {"size": size},
+    )
+    run(f"truncate -s {size} {t_img_file}")

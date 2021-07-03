@@ -5,13 +5,13 @@ slugify() {
   echo "$1" | sed -r 's/[^.a-zA-Z0-9]+/-/g'
 }
 
-export IMAGE="openebs/rawfile-localpv"
-export COMMIT=$(git rev-parse --short HEAD)
+export IMAGE="rahc/rawfilesh-csi"
+export COMMIT=$(git describe --tags --dirty)
 export BRANCH=${TRAVIS_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}
 export BRANCH_SLUG=$(slugify $BRANCH)
 
 export CI_REGISTRY="docker.io"
-export CI_TAG="${COMMIT}-ci"
+export CI_TAG="${COMMIT}"
 export CI_IMAGE_REPO="${CI_REGISTRY}/${IMAGE}"
 export CI_IMAGE_URI="${CI_IMAGE_REPO}:${CI_TAG}"
 

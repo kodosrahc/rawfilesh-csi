@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: debian
+  name: debian
+spec:
+  containers:
+  - args:
+    - sleep
+    - inf
+    image: debian:buster
+    name: debian
+    volumeMounts:
+    - mountPath: /srv/test-data
+      name: test-data
+  restartPolicy: Never
+  volumes:
+  - name: test-data
+    persistentVolumeClaim:
+      claimName: test-data

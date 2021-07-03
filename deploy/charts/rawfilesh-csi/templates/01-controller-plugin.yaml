@@ -1,33 +1,33 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "rawfile-csi.fullname" . }}-controller
+  name: {{ include "rawfilesh-csi.fullname" . }}-controller
   labels:
-    {{- include "rawfile-csi.labels" . | nindent 4 }}
+    {{- include "rawfilesh-csi.labels" . | nindent 4 }}
     component: controller
 spec:
   type: ClusterIP
   selector:
-    {{- include "rawfile-csi.selectorLabels" . | nindent 4 }}
+    {{- include "rawfilesh-csi.selectorLabels" . | nindent 4 }}
     component: controller
   clusterIP: None
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "rawfile-csi.fullname" . }}-controller
+  name: {{ include "rawfilesh-csi.fullname" . }}-controller
 spec:
   replicas: 1
-  serviceName: {{ include "rawfile-csi.fullname" . }}
+  serviceName: {{ include "rawfilesh-csi.fullname" . }}
   selector:
     matchLabels: &selectorLabels
-      {{- include "rawfile-csi.selectorLabels" . | nindent 6 }}
+      {{- include "rawfilesh-csi.selectorLabels" . | nindent 6 }}
       component: controller
   template:
     metadata:
       labels: *selectorLabels
     spec:
-      serviceAccount: {{ include "rawfile-csi.fullname" . }}-driver
+      serviceAccount: {{ include "rawfilesh-csi.fullname" . }}-driver
       priorityClassName: system-cluster-critical
       tolerations:
         - key: "node-role.kubernetes.io/master"
@@ -37,6 +37,8 @@ spec:
       volumes:
         - name: socket-dir
           emptyDir: {}
+        - name: data-dir
+          {{- toYaml .Values.sharedStorage | nindent 10 }}
       containers:
         - name: csi-driver
           image: "{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}"
@@ -46,15 +48,11 @@ spec:
               value: "{{ .Values.provisionerName }}"
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
-            - name: IMAGE_REPOSITORY
-              value: "{{ .Values.controller.image.repository }}"
-          {{- if regexMatch "^.*-ci$" .Values.controller.image.tag }}
-            - name: IMAGE_TAG
-              value: "{{ .Values.controller.image.tag }}"
-          {{- end }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+            - name: data-dir
+              mountPath: /data
           ports:
             - name: csi-probe
               containerPort: 9808
@@ -79,6 +77,19 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--handle-volume-inuse-error=false"
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        - name: external-attacher
+          image: k8s.gcr.io/sig-storage/csi-attacher:v3.2.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "-stderrthreshold=INFO"
+            - "-v=2"
           env:
             - name: ADDRESS
               value: /csi/csi.sock
