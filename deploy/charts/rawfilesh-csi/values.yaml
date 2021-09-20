@@ -8,7 +8,7 @@ sharedStorage:
 defaults: &defaults
   image:
     repository: docker.io/rahc/rawfilesh-csi
-    tag: 0.5.0
+    tag: 0.5.0-rfs.1
 #    pullPolicy: Always
   resources:
     limits:
